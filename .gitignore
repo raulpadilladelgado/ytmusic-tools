@@ -144,3 +144,5 @@ cython_debug/
 .pdm-python
 .pdm-build/
 .idea
+
+.atl

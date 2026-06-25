@@ -193,6 +193,23 @@ def remove_duplicates(ctx: click.Context, playlist_title, exact, fuzzy, score_cu
     return actions.remove_duplicates(context, playlist_title, exact, fuzzy, score_cutoff)
 
 
+@cli.command()
+@click.argument("source_playlist")
+@click.argument("reference_playlist")
+@click.pass_context
+def remove_intersection(ctx, source_playlist, reference_playlist):
+    """
+    Remove all tracks from SOURCE_PLAYLIST that also appear in REFERENCE_PLAYLIST.
+
+    SOURCE_PLAYLIST is the playlist you want to clean up.
+
+    REFERENCE_PLAYLIST is the playlist to check against — any track in SOURCE
+    that also exists in REFERENCE will be removed.
+    """
+    context = actions.ActionContext(ctx.obj["YT_AUTH"], static_progress=ctx.obj["STATIC_PROGRESS"])
+    return actions.remove_tracks_in_playlist(context, source_playlist, reference_playlist)
+
+
 @cli.command
 @click.option("--library", "-l", is_flag=True, help="Add all library songs to a playlist")
 @click.option("--uploads", "-u", is_flag=True, help="Add all uploaded songs to a playlist")

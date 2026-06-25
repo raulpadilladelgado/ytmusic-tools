@@ -656,6 +656,48 @@ def add_all_to_library(ctx: ActionContext, playlist_title_or_id):
     )
 
 
+def remove_tracks_in_playlist(ctx: ActionContext, source_playlist_title, reference_playlist_title):
+    yt_auth = ctx.yt_auth
+
+    source_playlist = get_library_playlist_from_title(yt_auth, source_playlist_title)
+    reference_playlist = get_library_playlist_from_title(yt_auth, reference_playlist_title, fail_if_not_owner=False)
+
+    source_tracks = source_playlist.get("tracks", [])
+    reference_tracks = reference_playlist.get("tracks", [])
+
+    source_playlist_id = source_playlist.get("id")
+    source_name = source_playlist.get("title")
+    reference_name = reference_playlist.get("title")
+
+    logging.info(
+        f"Checking {len(source_tracks)} tracks in {source_name!r} "
+        f"against {len(reference_tracks)} tracks in {reference_name!r}..."
+    )
+
+    reference_video_ids = {track.get("videoId") for track in reference_tracks if track.get("videoId")}
+
+    tracks_to_remove = [track for track in source_tracks if track.get("videoId") in reference_video_ids]
+
+    if not tracks_to_remove:
+        logging.info(f"No tracks from {reference_name!r} found in {source_name!r}.")
+        return 0
+
+    logging.info(f"Found {len(tracks_to_remove)} tracks to remove from {source_name!r}.")
+
+    if source_playlist_id == "LM":
+        for track in tracks_to_remove:
+            success = common.unlike_song(yt_auth, track)
+            if not success:
+                artist = track["artists"][0]["name"] if track.get("artists") else common.UNKNOWN_ARTIST
+                logging.error(f"\tFailed to unlike {artist} - {track['title']!r}", extra=common.SKIP_SENTRY_EXTRA)
+    else:
+        for chunk in common.chunked(tracks_to_remove, 50):
+            yt_auth.remove_playlist_items(source_playlist_id, chunk)
+
+    logging.info(f"Finished removing {len(tracks_to_remove)} tracks from {source_name!r}.")
+    return len(tracks_to_remove)
+
+
 def get_library_playlist_from_title(
     yt_auth, playlist_title: str, fail_if_not_exist: bool = True, fail_if_not_owner: bool = True
 ) -> JsonDict | None:
